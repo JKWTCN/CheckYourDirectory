@@ -1,0 +1,43 @@
+﻿<Window x:Class="CheckYourDirectory.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:CheckYourDirectory"
+        mc:Ignorable="d"
+        Title="MainWindow" Height="450" Width="800">
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
+            <TextBox x:Name="FolderPathTextBox" Width="300" Margin="0,0,10,0"/>
+            <Button Content="浏览..." Click="BrowseFolder_Click" Width="60"/>
+        </StackPanel>
+
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,10">
+            <Button Content="生成校验文件" Click="GenerateChecksum_Click" Margin="0,0,10,0" Width="100"/>
+            <Button Content="比对文件夹" Click="CompareFolder_Click" Width="100"/>
+        </StackPanel>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,10">
+            <TextBlock Text="校验算法:" VerticalAlignment="Center" Margin="0,0,10,0"/>
+            <ComboBox x:Name="HashAlgorithmComboBox" Width="120">
+                <ComboBoxItem Content="MD5" IsSelected="True"/>
+                <ComboBoxItem Content="SHA1"/>
+                <ComboBoxItem Content="SHA256"/>
+                <ComboBoxItem Content="SHA512"/>
+            </ComboBox>
+        </StackPanel>
+
+        <TextBox x:Name="LogTextBox" Grid.Row="3" IsReadOnly="True" VerticalScrollBarVisibility="Auto" 
+                 HorizontalScrollBarVisibility="Auto" TextWrapping="Wrap" FontFamily="Consolas"/>
+
+        <ProgressBar x:Name="ProgressBar" Grid.Row="4" Height="20" Margin="0,10,0,0"/>
+    </Grid>
+</Window>

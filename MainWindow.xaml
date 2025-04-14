@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:CheckYourDirectory"
         mc:Ignorable="d"
-        Title="文件夹校验工具" Height="450" Width="800">
+        Title="文件夹校验工具 by浮云战争  https://space.bilibili.com/283390377" Height="450" Width="800">
     <Grid Margin="10">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>

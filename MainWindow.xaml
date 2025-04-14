@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:CheckYourDirectory"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
+        Title="文件夹校验工具" Height="450" Width="800">
     <Grid Margin="10">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -22,6 +22,7 @@
 
         <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,10">
             <Button Content="生成校验文件" Click="GenerateChecksum_Click" Margin="0,0,10,0" Width="100"/>
+            <Button Content="打开校验文件" Click="OpenChecksumFile_Click" Margin="0,0,10,0" Width="100"/>
             <Button Content="比对文件夹" Click="CompareFolder_Click" Width="100"/>
         </StackPanel>
 

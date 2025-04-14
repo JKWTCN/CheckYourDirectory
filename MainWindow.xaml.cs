@@ -1,14 +1,33 @@
-﻿using Newtonsoft.Json;
+﻿using Microsoft.Win32;
+using Newtonsoft.Json;
 using System.IO;
 using System.Security.Cryptography;
 using System.Windows;
 using System.Windows.Controls;
-using Formatting = Newtonsoft.Json.Formatting;
 
 namespace CheckYourDirectory
 {
+    public class ChecksumData
+    {
+        /// <summary>
+        /// 使用的哈希算法(MD5/SHA1/SHA256/SHA512)
+        /// </summary>
+        public string HashAlgorithm { get; set; }
+
+        /// <summary>
+        /// 文件创建时间(用于记录快照时间)
+        /// </summary>
+        public DateTime CreationTime { get; set; } = DateTime.Now;
+
+        /// <summary>
+        /// 文件校验值字典(相对路径->校验值)
+        /// </summary>
+        public Dictionary<string, string> FileChecksums { get; set; } = new Dictionary<string, string>();
+    }
     public partial class MainWindow : Window
     {
+        private ChecksumData _loadedChecksumData;
+
         public MainWindow()
         {
             InitializeComponent();
@@ -42,22 +61,42 @@ namespace CheckYourDirectory
                 return;
             }
 
-            var algorithm = ((ComboBoxItem)HashAlgorithmComboBox.SelectedItem).Content.ToString();
             var folderPath = FolderPathTextBox.Text;
-            var outputFile = Path.Combine(folderPath, "folder_checksum.json");
+
+            // 弹出保存文件对话框
+            var saveDialog = new SaveFileDialog
+            {
+                Title = "保存校验文件",
+                Filter = "JSON文件|*.json",
+                FileName = "folder_checksum.json",
+                DefaultExt = ".json"
+            };
+
+            if (saveDialog.ShowDialog() != true)
+            {
+                return; // 用户取消了保存
+            }
 
             try
             {
                 ProgressBar.IsIndeterminate = true;
                 LogTextBox.Text = "正在计算文件校验值...\n";
 
-                var checksumData = await Task.Run(() => CalculateFolderChecksums(folderPath, algorithm));
+                var algorithm = ((ComboBoxItem)HashAlgorithmComboBox.SelectedItem).Content.ToString();
+                var fileChecksums = await Task.Run(() => CalculateFolderChecksums(folderPath, algorithm));
+
+                var checksumData = new ChecksumData
+                {
+                    HashAlgorithm = algorithm,
+                    FileChecksums = fileChecksums
+                };
 
                 var json = JsonConvert.SerializeObject(checksumData, Formatting.Indented);
-                File.WriteAllText(outputFile, json);
+                File.WriteAllText(saveDialog.FileName, json);
 
-                LogTextBox.AppendText($"校验文件已生成: {outputFile}\n");
-                LogTextBox.AppendText($"共处理 {checksumData.Count} 个文件\n");
+                LogTextBox.AppendText($"校验文件已保存: {saveDialog.FileName}\n");
+                LogTextBox.AppendText($"使用算法: {algorithm}\n");
+                LogTextBox.AppendText($"共处理 {fileChecksums.Count} 个文件\n");
             }
             catch (Exception ex)
             {
@@ -69,8 +108,53 @@ namespace CheckYourDirectory
             }
         }
 
+
+        private void OpenChecksumFile_Click(object sender, RoutedEventArgs e)
+        {
+            var openDialog = new OpenFileDialog
+            {
+                Title = "打开校验文件",
+                Filter = "JSON文件|*.json",
+                DefaultExt = ".json"
+            };
+
+            if (openDialog.ShowDialog() == true)
+            {
+                try
+                {
+                    var json = File.ReadAllText(openDialog.FileName);
+                    var checksumData = JsonConvert.DeserializeObject<ChecksumData>(json);
+                    _loadedChecksumData = checksumData;
+
+                    LogTextBox.Text = $"已加载校验文件: {openDialog.FileName}\n";
+                    LogTextBox.AppendText($"使用算法: {checksumData.HashAlgorithm}\n");
+                    LogTextBox.AppendText($"共包含 {checksumData.FileChecksums.Count} 个文件的校验信息\n");
+
+                    // 更新UI显示当前使用的算法
+                    foreach (ComboBoxItem item in HashAlgorithmComboBox.Items)
+                    {
+                        if (item.Content.ToString() == checksumData.HashAlgorithm)
+                        {
+                            item.IsSelected = true;
+                            break;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"加载校验文件失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+
         private async void CompareFolder_Click(object sender, RoutedEventArgs e)
         {
+            if (_loadedChecksumData == null)
+            {
+                MessageBox.Show("请先打开校验文件", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
             if (string.IsNullOrWhiteSpace(FolderPathTextBox.Text))
             {
                 MessageBox.Show("请先选择文件夹", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -78,29 +162,17 @@ namespace CheckYourDirectory
             }
 
             var folderPath = FolderPathTextBox.Text;
-            var checksumFile = Path.Combine(folderPath, "folder_checksum.json");
-
-            if (!File.Exists(checksumFile))
-            {
-                MessageBox.Show("找不到校验文件 (folder_checksum.json)", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
-                return;
-            }
+            var algorithm = _loadedChecksumData.HashAlgorithm; // 使用校验文件中指定的算法
 
             try
             {
                 ProgressBar.IsIndeterminate = true;
-                LogTextBox.Text = "正在读取校验文件...\n";
-
-                var algorithm = ((ComboBoxItem)HashAlgorithmComboBox.SelectedItem).Content.ToString();
-                var originalData = JsonConvert.DeserializeObject<Dictionary<string, string>>(File.ReadAllText(checksumFile));
-
-                LogTextBox.AppendText("正在比对文件夹内容...\n");
+                LogTextBox.AppendText($"\n正在使用 {algorithm} 算法比对文件夹内容...\n");
 
                 var currentData = await Task.Run(() => CalculateFolderChecksums(folderPath, algorithm));
 
                 // 比较结果
-                var comparison = CompareChecksums(originalData, currentData);
-
+                var comparison = CompareChecksums(_loadedChecksumData.FileChecksums, currentData);
                 LogTextBox.AppendText("\n=== 比对结果 ===\n");
                 LogTextBox.AppendText($"新增文件: {comparison.AddedFiles.Count}\n");
                 LogTextBox.AppendText($"删除文件: {comparison.DeletedFiles.Count}\n");
@@ -168,22 +240,13 @@ namespace CheckYourDirectory
         {
             using (var stream = File.OpenRead(filePath))
             {
-                HashAlgorithm hashAlgorithm;
-                switch (algorithm)
+                HashAlgorithm hashAlgorithm = algorithm switch
                 {
-                    case "SHA1":
-                        hashAlgorithm = SHA1.Create();
-                        break;
-                    case "SHA256":
-                        hashAlgorithm = SHA256.Create();
-                        break;
-                    case "SHA512":
-                        hashAlgorithm = SHA512.Create();
-                        break;
-                    default:
-                        hashAlgorithm = MD5.Create();
-                        break;
-                }
+                    "SHA1" => SHA1.Create(),
+                    "SHA256" => SHA256.Create(),
+                    "SHA512" => SHA512.Create(),
+                    _ => MD5.Create(),
+                };
 
                 var hash = hashAlgorithm.ComputeHash(stream);
                 return BitConverter.ToString(hash).Replace("-", "").ToLower();
